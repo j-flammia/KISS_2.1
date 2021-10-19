@@ -13,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
@@ -201,7 +202,7 @@ fun BasicEvent (
     Column(
 
         modifier = Modifier
-            .wrapContentSize() // content will fill available size of columns allowable space.
+            .wrapContentSize() // content will fill available size of contents allowable space.
             .padding(end = 2.dp, bottom = 2.dp) // internal padding
             // defines background color and shape of our events:
             .background(event.color, shape = RoundedCornerShape(4.dp))
@@ -241,14 +242,50 @@ fun BasicEvent (
     }
 }
 
-// this will visualize all events that are on the same day in a single column:
+// this composable will display our daily column of events for calendar view:
 @Composable
-fun DayColumn(
-    eventsList: List<EventClass>, // create a list of events
-    modifier: Modifier = Modifier,
+fun DayViewSchedule(
+    eventsList: List<EventClass>, // this parameter takes a list of events
+    modifier: Modifier = Modifier, // modifier parameters if necessary otherwise default
+    // this parameter determines what to show for each eventClass in events list:
     eventContent: @Composable (event: EventClass) -> Unit = { BasicEvent(event = it) }
 ) {
-
+    // this is our custom layout that will be used to visually arrange the events by time:
+    Layout(
+        content = { // this is the content the Layout will display:
+            eventsList.sortedBy(EventClass::start).forEach { event ->
+                eventContent(event)
+            }
+        },
+    modifier = Modifier,
+    ) {
+        // this lambda will measure each event and keep track of total height used:
+            measurables, constraints ->
+        var height = 0
+        val placeables = measurables.map { measurable ->
+            // max height of each event is set to 64 dp:
+            val placeable = measurable.measure(constraints.copy(maxHeight = 64.dp.roundToPx()))
+            height += placeable.height
+            placeable
+        }
+        // this will loop through each of the placeables and position them within the layout.
+        // We keep track of the 'y' position so that they don't overlap:
+        layout(constraints.maxWidth, height) {
+            var y = 0
+            placeables.forEach { placeable ->
+                // places each event inline vertically, and stacked horizontally:
+                placeable.place(0, y)
+                y += placeable.height
+            }
+        }
+    }
+}
+@Preview(showBackground = true)
+@Composable
+fun SchedulePreview() {
+    KISS_21Theme() {
+        DayViewSchedule(eventsList = sampleEvents)
+    }
 }
 
 // override preview parameter so that it receives a list of events as arguments:
